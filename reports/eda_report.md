@@ -64,6 +64,6 @@ Churn rate in the bottom vs top quintile of each numeric feature. A large spread
 - **Recency dominates**, as expected, but it is not sufficient: the recency-only rule reaches PR-AUC ~0.78 against ~0.84 for the learned models. The gap is customers whose *normal* cadence is slow - they look dormant on an absolute scale and are not.
 - **Counts need normalising by exposure.** Raw `orders` is confounded by tenure; `orders_per_month` and `recency_vs_habit` are the versions that generalise.
 - **Support tickets and returns are weak individually** but carry signal in combination with low order frequency - an argument for keeping a non-linear candidate in the comparison.
-- **No resampling.** SMOTE on a 27% positive rate distorts calibration for no measurable ranking gain; `class_weight='balanced'` plus a cost-based threshold is the cheaper, better-calibrated route.
+- **No resampling and no class weighting.** 27% positives is not extreme. SMOTE and `class_weight='balanced'` both distort calibration for no measurable ranking gain (out-of-fold PR-AUC 0.8386 weighted vs 0.8388 unweighted, Brier 0.119 vs 0.097). The class imbalance is handled once, at the decision threshold, where the cost assumptions are explicit.
 
 ![EDA overview](eda_overview.png)

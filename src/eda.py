@@ -1,7 +1,7 @@
 """Exploratory analysis, written out as a markdown report plus figures.
 
 Run as a script (`python -m src.eda`). The narrative version with commentary is
-`notebooks/01_exploratory_analysis.ipynb`; this module is the reproducible,
+`notebooks/01_churn_analysis.ipynb`; this module is the reproducible,
 diff-friendly, CI-runnable form of the same analysis.
 """
 
@@ -214,8 +214,10 @@ def main() -> None:
         "and `recency_vs_habit` are the versions that generalise.",
         "- **Support tickets and returns are weak individually** but carry signal in combination with low "
         "order frequency - an argument for keeping a non-linear candidate in the comparison.",
-        "- **No resampling.** SMOTE on a 27% positive rate distorts calibration for no measurable ranking gain; "
-        "`class_weight='balanced'` plus a cost-based threshold is the cheaper, better-calibrated route.",
+        "- **No resampling and no class weighting.** 27% positives is not extreme. SMOTE and "
+        "`class_weight='balanced'` both distort calibration for no measurable ranking gain "
+        "(out-of-fold PR-AUC 0.8386 weighted vs 0.8388 unweighted, Brier 0.119 vs 0.097). The class "
+        "imbalance is handled once, at the decision threshold, where the cost assumptions are explicit.",
         "",
         f"![EDA overview]({plot_path.split('/')[-1]})",
         "",

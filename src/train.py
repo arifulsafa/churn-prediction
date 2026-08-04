@@ -138,7 +138,7 @@ def leakage_demonstration(df_raw: pd.DataFrame, X_train, y_train) -> dict:
     X_leaky[leaky_col] = deduped.loc[X_train.index, leaky_col].to_numpy()
 
     pipe = build_pipeline(
-        LogisticRegression(max_iter=1000, class_weight="balanced", random_state=config.RANDOM_SEED),
+        LogisticRegression(max_iter=1000, random_state=config.RANDOM_SEED),
         extra_numeric=[leaky_col],
     )
     scores = cross_val_score(pipe, X_leaky, y_train, cv=_cv(), scoring="average_precision")

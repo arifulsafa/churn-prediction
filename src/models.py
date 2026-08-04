@@ -75,9 +75,15 @@ def candidate_models() -> dict[str, dict]:
         },
         "logistic_regression": {
             "pipeline": build_pipeline(
+                # No `class_weight="balanced"`. Reweighting the loss and lowering
+                # the decision threshold are two ways to say the same thing, and
+                # doing both double-counts: measured on out-of-fold predictions,
+                # weighting left ranking untouched (PR-AUC 0.8386 vs 0.8388) while
+                # pushing the mean predicted probability to 0.387 against a 0.271
+                # base rate (Brier 0.119 vs 0.097). Class imbalance is handled
+                # once, at the threshold, where the cost assumptions are explicit.
                 LogisticRegression(
                     max_iter=2000,
-                    class_weight="balanced",
                     solver="liblinear",
                     random_state=config.RANDOM_SEED,
                 ),

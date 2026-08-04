@@ -4,8 +4,8 @@ An end-to-end churn solution for an e-commerce business: synthetic data generati
 leakage-safe training pipeline, model comparison with a cost-based decision threshold, explainability,
 a FastAPI prediction service, tests, and a production architecture.
 
-**Headline result:** logistic regression, test-set **PR-AUC 0.850 / ROC-AUC 0.912**, **85% recall**
-at **60% precision**, **3.7x lift** in the top decile — against an incumbent recency rule at
+**Headline result:** logistic regression, test-set **PR-AUC 0.851 / ROC-AUC 0.911**, **84% recall**
+at **62% precision**, **3.7x lift** in the top decile — against an incumbent recency rule at
 PR-AUC 0.795 and a majority baseline that scores 72.9% accuracy while catching nobody.
 
 ---
@@ -39,28 +39,28 @@ curl -X POST http://localhost:8000/predict \
 
 ```json
 {
-  "churn_probability": 0.379,
+  "churn_probability": 0.1836,
   "prediction": "medium_risk",
   "will_churn": false,
-  "decision_threshold": 0.43,
+  "decision_threshold": 0.23,
   "top_reasons": [
     {
-      "feature": "orders_per_month",
-      "label": "Order frequency",
+      "feature": "orders_last_90d",
+      "label": "Orders in the last 90 days",
       "direction": "increases_risk",
-      "contribution": 0.4002
+      "contribution": 0.3587
     },
     {
       "feature": "order_value_cv",
       "label": "Order-value consistency",
       "direction": "decreases_risk",
-      "contribution": -0.325
+      "contribution": -0.3367
     },
     {
-      "feature": "orders_last_90d",
-      "label": "Orders in the last 90 days",
+      "feature": "orders_per_month",
+      "label": "Order frequency",
       "direction": "increases_risk",
-      "contribution": 0.3205
+      "contribution": 0.3299
     }
   ],
   "imputed_fields": [
@@ -181,12 +181,12 @@ interpretability is a net loss.
 |---|---|---|---|
 | Majority class | 0.271 | 0.500 | Sanity floor: 72.9% accuracy, catches zero churners |
 | Recency rule (`> N days`) | 0.776 | 0.860 | The incumbent business heuristic — the real bar to beat |
-| **Logistic regression** (selected) | **0.839** | **0.902** | Interpretable, calibrated, fast |
+| **Logistic regression** (selected) | **0.839** | **0.901** | Interpretable, calibrated, fast |
 | Gradient boosting (HistGB) | 0.841 | 0.901 | Non-linearities and interactions |
 
 ### Why logistic regression was selected over gradient boosting
 
-Gradient boosting wins by **0.0020 PR-AUC against a fold standard deviation of 0.013**. That is
+Gradient boosting wins by **0.0018 PR-AUC against a fold standard deviation of 0.013**. That is
 noise, not a difference. The **one-standard-error rule** in `train.select_model` therefore takes the
 simplest model statistically tied with the best, which buys:
 
@@ -265,43 +265,63 @@ PR-AUC rather than ROC-AUC because we care about the ranking of the *positive* c
 optimistic under class imbalance. **Brier score** is also tracked: the probabilities are used to
 prioritise a call list, so their calibration matters, not just their order.
 
+### Handling class imbalance: at the threshold, not in the loss
+
+The obvious move on a 27%-positive problem is `class_weight="balanced"`. It was tried and
+**rejected**, because reweighting the loss and lowering the decision threshold are two ways of
+expressing the same preference, and doing both double-counts it. Measured on out-of-fold predictions:
+
+| | PR-AUC | ROC-AUC | Brier | Mean predicted probability |
+|---|---|---|---|---|
+| `class_weight="balanced"` | 0.8386 | 0.9017 | 0.119 | 0.387 |
+| **No class weighting** | 0.8388 | 0.9010 | **0.097** | **0.273** (base rate 0.271) |
+
+Weighting bought nothing in ranking and pushed every predicted probability ~40% too high — the
+reliability curve sat visibly below the diagonal. Without it the probabilities are honest, and the
+cost asymmetry is applied once, at the threshold, where the assumptions behind it are written down
+in `config.py` and can be argued about by the business.
+
+Resampling (SMOTE) was rejected for the same reason plus a worse one: 27% positives is not extreme
+enough to need synthetic minority samples, and it would distort calibration further.
+
 ### Test-set results (2,400 held-out customers, scored once)
 
 | Metric | Majority | Recency rule | **Logistic regression** |
 |---|---|---|---|
-| Accuracy | 0.729 | 0.814 | 0.806 |
-| Precision | 0.000 | 0.628 | 0.600 |
-| Recall | 0.000 | 0.771 | **0.851** |
-| F1 | 0.000 | 0.692 | 0.704 |
-| ROC-AUC | 0.500 | 0.874 | **0.912** |
-| PR-AUC | 0.271 | 0.795 | **0.850** |
-| Brier | 0.198 | 0.148 | **0.117** |
-| Lift @ top 10% | 1.04x | 3.59x | **3.66x** |
+| Accuracy | 0.729 | 0.814 | 0.815 |
+| Precision | 0.000 | 0.628 | 0.618 |
+| Recall | 0.000 | 0.771 | **0.839** |
+| F1 | 0.000 | 0.692 | **0.711** |
+| ROC-AUC | 0.500 | 0.874 | **0.911** |
+| PR-AUC | 0.271 | 0.795 | **0.851** |
+| Brier | 0.198 | 0.148 | **0.093** |
+| Lift @ top 10% | 1.04x | 3.59x | **3.67x** |
 | Expected cost / customer | £32.55 | £27.68 | **£27.31** |
 
-Note that **accuracy is slightly *worse* than the recency rule while every metric that matters is
-better** — a clean illustration of why accuracy was not the selection metric.
+Note that **accuracy is essentially identical to the recency rule (0.815 vs 0.814) while every
+metric that matters is clearly better** — a clean illustration of why accuracy was not the
+selection metric.
 
-### Confusion matrix at the chosen threshold (0.43)
+### Confusion matrix at the chosen threshold (0.23)
 
 |  | Predicted retained | Predicted churn |
 |---|---|---|
-| **Actually retained** | 1,381 | 368 |
-| **Actually churned** | 97 | **554** |
+| **Actually retained** | 1,411 | 338 |
+| **Actually churned** | 105 | **546** |
 
-Of 651 real churners we catch 554 (85%). Of 922 customers flagged, 554 really churn (60%).
+Of 651 real churners we catch 546 (84%). Of 884 customers flagged, 546 really churn (62%).
 
 ### The threshold is a business decision
 
 0.5 is an arbitrary default. `evaluate.choose_threshold` sweeps the threshold on out-of-fold
-validation predictions and minimises expected cost, landing at **0.43** — below 0.5, exactly as the
-cost asymmetry implies. Changing the cost assumptions in `config.py` moves the threshold without
+validation predictions and minimises expected cost, landing at **0.23** — well below 0.5, exactly as
+the 15:1 cost asymmetry implies. Changing the cost assumptions in `config.py` moves the threshold without
 touching the model.
 
 ### Honest comparison against the incumbent
 
-Against the recency rule, the model catches **52 more churners** (554 vs 502) for **71 more false
-alarms** (368 vs 297) — about **£0.37 per customer per quarter**, or ~£44k a year on a
+Against the recency rule, the model catches **44 more churners** (546 vs 502) for **41 more false
+alarms** (338 vs 297) — about **£0.38 per customer per quarter**, or ~£45k a year on a
 30,000-customer base. Real, but not spectacular, and worth saying plainly: most of the signal in
 churn is recency. The model's contribution is the part recency misses — customers whose *personal*
 cadence has broken while their absolute recency still looks fine.
@@ -317,22 +337,22 @@ Permutation importance on held-out data, in units of PR-AUC lost when a column i
 
 | Feature | PR-AUC lost when shuffled |
 |---|---|
-| Days since last order | 0.451 |
-| Lifetime orders | 0.152 |
-| Orders in the last 90 days | 0.081 |
-| Account tenure | 0.078 |
-| Lifetime returns | 0.011 |
+| Days since last order | 0.452 |
+| Lifetime orders | 0.137 |
+| Orders in the last 90 days | 0.088 |
+| Account tenure | 0.069 |
+| Lifetime returns | 0.009 |
 
 Coefficients as odds ratios — features are standardised, so each is the effect of a
 **one-standard-deviation** change, not one unit:
 
 | Driver | Odds ratio | Direction |
 |---|---|---|
-| Silence relative to own buying rhythm | 3.34 | ▲ risk |
-| Typical gap between orders | 2.59 | ▲ risk |
-| Days since last order | 1.69 | ▲ risk |
-| Orders in the last 90 days | 0.35 | ▼ risk |
-| Order frequency | 0.46 | ▼ risk |
+| Silence relative to own buying rhythm | 3.27 | ▲ risk |
+| Typical gap between orders | 2.43 | ▲ risk |
+| Days since last order | 1.95 | ▲ risk |
+| Orders in the last 90 days | 0.31 | ▼ risk |
+| Order frequency | 0.53 | ▼ risk |
 
 `/predict` returns the top drivers per customer, so a retention agent gets a reason to open a
 conversation rather than a bare score.
@@ -344,8 +364,8 @@ conversation rather than a bare score.
 > warning sign; recent orders are the clearest reassurance. Support tickets and returns push risk
 > up, but weakly — they are a symptom, not the main story.
 >
-> **What it can do:** out of every 100 customers it flags, about 60 would really have churned, and
-> it catches roughly 85 of every 100 churners. Treat it as a prioritised call list, not a verdict on
+> **What it can do:** out of every 100 customers it flags, about 62 would really have churned, and
+> it catches roughly 84 of every 100 churners. Treat it as a prioritised call list, not a verdict on
 > any individual.
 >
 > **What it cannot do:** it has never seen a retention campaign. Once we act on its output, our own
@@ -436,8 +456,9 @@ performance is the confirmation.
    multiple snapshots with a temporal rather than random split.
 4. **Predicts churn, not save-ability.** The business wants the customers an offer would *save*,
    which is an uplift-modelling problem and needs a randomised holdout first.
-5. **Calibration is good but not perfect** (Brier 0.117) — fine for ranking and for the chosen
-   threshold, not for quoting customer-level probabilities in a financial forecast.
+5. **Calibration is good** (Brier 0.093, and the reliability curve sits on the diagonal), but it was
+   measured on synthetic data from a stationary process. Real data drifts, so calibration should be
+   re-checked on every retrain before probabilities are quoted in a financial forecast.
 6. **No fairness audit.** Age and country are inputs; before production I would check error-rate
    parity across country and tenure bands and consider dropping age entirely, since it contributes
    almost nothing.
@@ -461,7 +482,13 @@ decisions — the churn definition, the simulation-based data strategy, the one-
 selection rule, the cost-based threshold, the leakage demonstration, and the feature set — were
 directed, reviewed and verified by me, and I can discuss or modify any part of it.
 
-Two specific cases where AI output was rejected and changed after checking the numbers:
-`log_days_since_last_order` was dropped after an ablation showed it added nothing and flipped a
-coefficient's sign; and an initial per-row monotonicity test was replaced with a population-level
-one after inspection showed individual curves legitimately wobble under correlated recency features.
+Three specific cases where the first draft was rejected and changed after checking the numbers:
+
+1. **`class_weight="balanced"` was removed.** The calibration plot showed the model systematically
+   over-predicting. Measuring it confirmed the cause: weighting bought no ranking improvement and
+   pushed mean predicted probability from 0.273 to 0.387 against a 0.271 base rate. Removing it
+   improved Brier from 0.119 to 0.093 and moved the reliability curve onto the diagonal.
+2. **`log_days_since_last_order` was dropped** after an ablation showed it added nothing (0.8391 vs
+   0.8387) and took a negative coefficient that made recency read as risk-*reducing*.
+3. **A per-row monotonicity test was replaced with a population-level one** after inspection showed
+   individual customer curves legitimately wobble under correlated recency features.

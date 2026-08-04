@@ -5,31 +5,31 @@
     "model__C": "0.1",
     "model__l1_ratio": "1.0"
   },
-  "decision_threshold": 0.43,
+  "decision_threshold": 0.23,
   "risk_bands": {
-    "high_risk": 0.43,
-    "medium_risk": 0.215
+    "high_risk": 0.23,
+    "medium_risk": 0.115
   },
-  "trained_at": "2026-08-04T16:25:00+00:00",
+  "trained_at": "2026-08-04T16:35:03+00:00",
   "training_rows": 9600,
   "test_rows": 2400,
   "train_churn_rate": 0.27125,
-  "cv_pr_auc": 0.8386807509342274,
+  "cv_pr_auc": 0.8388794989053769,
   "test_metrics": {
-    "threshold": 0.43,
-    "accuracy": 0.80625,
-    "precision": 0.6008676789587852,
-    "recall": 0.8509984639016898,
-    "f1": 0.7043865225683408,
-    "roc_auc": 0.9121007483758549,
-    "pr_auc": 0.850293877293335,
-    "brier": 0.11714678411357866,
-    "tn": 1381,
-    "fp": 368,
-    "fn": 97,
-    "tp": 554,
-    "expected_cost_per_customer": 27.313333333333333,
-    "lift_at_10pct": 3.655913978494624
+    "threshold": 0.23,
+    "accuracy": 0.8154166666666667,
+    "precision": 0.6176470588235294,
+    "recall": 0.8387096774193549,
+    "f1": 0.711400651465798,
+    "roc_auc": 0.911189101694275,
+    "pr_auc": 0.8505261479049477,
+    "brier": 0.0934670880363142,
+    "tn": 1411,
+    "fp": 338,
+    "fn": 105,
+    "tp": 546,
+    "expected_cost_per_customer": 27.30666666666667,
+    "lift_at_10pct": 3.6712749615975424
   },
   "input_features": {
     "numeric": [

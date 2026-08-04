@@ -59,16 +59,19 @@ serialised pipeline; there is no serving-side feature code.
 - **Simulated behaviour, not a rule-defined label.** A rule-defined label makes any model look
   perfect and demonstrates nothing.
 - **Logistic regression selected over gradient boosting** by the one-standard-error rule
-  (0.8387 vs 0.8407, fold std 0.013 → statistically tied, take the simpler one). This is a
+  (0.8389 vs 0.8407, fold std 0.013 → statistically tied, take the simpler one). This is a
   tie-breaker, not a blanket preference; `test_one_standard_error_rule_still_picks_a_clearly_better_model`
   pins the other direction.
 - **PR-AUC is the selection metric; recall is the business priority.** A missed churner costs ~15x a
-  false alarm, hence a 0.43 threshold rather than 0.5. Accuracy is reported and never used to decide
+  false alarm, hence a 0.23 threshold rather than 0.5. Accuracy is reported and never used to decide
   anything (the majority baseline gets 72.9%).
 - **`log_days_since_last_order` was removed** after an ablation: 0.8391 → 0.8387 (nothing), and it
   took a negative coefficient that made recency read as risk-*reducing*. Do not re-add it.
-- **No SMOTE / resampling.** 27% positives is not extreme; `class_weight="balanced"` plus a
-  cost-based threshold keeps calibration intact, which SMOTE would damage.
+- **No SMOTE and no `class_weight="balanced"`.** Both were considered; weighting was measured and
+  rejected — it left ranking untouched (OOF PR-AUC 0.8386 vs 0.8388) while pushing mean predicted
+  probability to 0.387 against a 0.271 base rate (Brier 0.119 vs 0.097). Reweighting the loss and
+  lowering the threshold say the same thing; doing both double-counts. Imbalance is handled once, at
+  the threshold. **Do not re-add `class_weight` to `models.py`.**
 - **API: only `tenure_months` and `orders` are required.** The brief's 5-field example must keep
   working verbatim; everything else is imputed and reported in `imputed_fields`.
 
@@ -89,8 +92,8 @@ README data-quality table.
 
 ## Current results (test set, 2,400 customers, scored once)
 
-PR-AUC 0.850 · ROC-AUC 0.912 · precision 0.601 · recall 0.851 · F1 0.704 · Brier 0.117 ·
-lift@10% 3.66x · threshold 0.43 · confusion matrix TN 1381 / FP 368 / FN 97 / TP 554.
+PR-AUC 0.851 · ROC-AUC 0.911 · precision 0.618 · recall 0.839 · F1 0.711 · Brier 0.093 ·
+lift@10% 3.67x · threshold 0.23 · confusion matrix TN 1411 / FP 338 / FN 105 / TP 546.
 Baselines: majority PR-AUC 0.271, recency rule PR-AUC 0.795.
 
 ## Open items (deliberately not done — scope was 3–4 hours)
