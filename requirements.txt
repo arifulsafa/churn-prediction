@@ -1,0 +1,22 @@
+# Pinned to the versions this project was developed and tested against.
+# Lower bounds would be enough for the code to work, but reproducibility is the point.
+numpy==2.4.6
+pandas==3.0.5
+scikit-learn==1.9.0
+scipy==1.18.0
+matplotlib==3.11.1
+joblib==1.5.3
+tabulate==0.10.0
+
+# API
+fastapi==0.141.1
+uvicorn==0.52.1
+pydantic==2.13.4
+
+# Explainability (optional at runtime: the API falls back to exact linear
+# contributions when the selected model is the logistic regression)
+shap==0.52.0
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1

@@ -1,0 +1,5 @@
+model,family,cv_pr_auc,cv_pr_auc_std,cv_roc_auc,fit_seconds,best_params
+gradient_boosting,tree_ensemble,0.8407391010342774,0.012667764729252793,0.9014615261564014,21.1,"{""model__l2_regularization"": 1.0, ""model__learning_rate"": 0.05, ""model__max_iter"": 200, ""model__max_leaf_nodes"": 15, ""model__min_samples_leaf"": 50}"
+logistic_regression,linear,0.8386807509342274,0.013371666455381051,0.9015149773316283,1.0,"{""model__C"": 0.1, ""model__l1_ratio"": 1.0}"
+recency_rule_baseline,baseline,0.7754750931534101,0.017230514742285548,0.8596914225757697,1.1,"{""model__threshold_days"": 60}"
+majority_baseline,baseline,0.27125000000000005,0.0002083333333333437,0.5,1.2,{}
